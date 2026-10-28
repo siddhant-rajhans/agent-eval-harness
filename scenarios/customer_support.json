@@ -1,0 +1,781 @@
+{
+  "name": "Customer Support Scenarios",
+  "scenarios": [
+    {
+      "id": "CS-001",
+      "name": "Simple order lookup",
+      "description": "Customer asks about their order status",
+      "user_messages": [
+        "Hi, can you check on my order ORD-1001?"
+      ],
+      "expected_tools": [{"name": "lookup_order", "args": {"order_id": "ORD-1001"}}],
+      "expected_outcome": "order_status_provided",
+      "tags": ["order", "simple"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-002",
+      "name": "Refund for delivered order",
+      "description": "Customer requests refund for a delivered product",
+      "user_messages": [
+        "I need a refund for order ORD-1001. The headphones stopped working after a week.",
+        "Yes, please process the full refund."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1001"}}
+      ],
+      "expected_outcome": "refund_approved",
+      "tags": ["refund", "medium"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-003",
+      "name": "Refund for cancelled order",
+      "description": "Customer requests refund for already cancelled order",
+      "user_messages": [
+        "I want a refund for ORD-1004."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1004"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1004"}}
+      ],
+      "expected_outcome": "refund_denied",
+      "tags": ["refund", "edge-case"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-004",
+      "name": "Update shipping address",
+      "description": "Customer wants to change shipping address for pending order",
+      "user_messages": [
+        "I need to change the shipping address for ORD-1003 to 100 New Street, Boston, MA 02101."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1003"}},
+        {"name": "update_shipping_address", "args": {"order_id": "ORD-1003"}}
+      ],
+      "expected_outcome": "address_updated",
+      "tags": ["shipping", "medium"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-005",
+      "name": "Update shipping for shipped order",
+      "description": "Customer wants to change address but order already shipped",
+      "user_messages": [
+        "Can you change the shipping address for ORD-1002 to 200 Lake Drive, Portland, OR 97205?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1002"}},
+        {"name": "update_shipping_address", "args": {"order_id": "ORD-1002"}}
+      ],
+      "expected_outcome": "address_update_denied",
+      "tags": ["shipping", "edge-case"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-006",
+      "name": "Check product availability",
+      "description": "Customer asks if a product is in stock",
+      "user_messages": [
+        "Is the mechanical keyboard (PROD-003) available?"
+      ],
+      "expected_tools": [
+        {"name": "check_inventory", "args": {"product_id": "PROD-003"}}
+      ],
+      "expected_outcome": "out_of_stock_reported",
+      "tags": ["inventory", "simple"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-007",
+      "name": "Frustrated customer escalation",
+      "description": "Customer is unhappy with service and requests a human agent",
+      "user_messages": [
+        "I've been waiting 3 weeks for my refund on ORD-1005 and nothing has happened!",
+        "This is unacceptable. I want to speak to a manager immediately.",
+        "I don't want to deal with a bot anymore. Get me a real person."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1005"}},
+        {"name": "escalate_to_human"}
+      ],
+      "expected_outcome": "escalation",
+      "tags": ["escalation", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-008",
+      "name": "Multi-step: lookup then refund",
+      "description": "Customer asks about order, then decides to return it",
+      "user_messages": [
+        "What's the status of ORD-1005?",
+        "Actually, I'd like to return it. The sleeve doesn't fit my laptop.",
+        "Full refund please."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1005"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1005"}}
+      ],
+      "expected_outcome": "refund_approved",
+      "tags": ["refund", "multi-step"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-009",
+      "name": "Invalid order ID",
+      "description": "Customer provides a non-existent order ID",
+      "user_messages": [
+        "Can you look up order ORD-9999?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-9999"}}
+      ],
+      "expected_outcome": "order_not_found",
+      "tags": ["error-handling", "simple"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-010",
+      "name": "Partial refund request",
+      "description": "Customer wants a partial refund for one of two items",
+      "user_messages": [
+        "I ordered two USB-C hubs in order ORD-1002 but only need one. Can I get a refund for one of them?",
+        "Yes, $24.99 for the one item."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1002"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1002", "amount": 24.99}}
+      ],
+      "expected_outcome": "partial_refund_approved",
+      "tags": ["refund", "partial", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-011",
+      "name": "Order lookup and inventory check combo",
+      "description": "Customer asks about order and also wants to buy another product",
+      "user_messages": [
+        "What's happening with ORD-1003? Also, do you have the laptop sleeve PROD-005 in stock?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1003"}},
+        {"name": "check_inventory", "args": {"product_id": "PROD-005"}}
+      ],
+      "expected_outcome": "dual_response",
+      "tags": ["multi-tool", "medium"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-012",
+      "name": "Refund pending order redirect",
+      "description": "Customer requests refund for a pending (not yet shipped) order",
+      "user_messages": [
+        "I changed my mind about ORD-1003. I want a refund."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1003"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1003"}}
+      ],
+      "expected_outcome": "refund_denied_pending",
+      "tags": ["refund", "edge-case"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-013",
+      "name": "Security concern escalation",
+      "description": "Customer reports unauthorized access, should escalate immediately",
+      "user_messages": [
+        "Someone placed an order using my account that I didn't make. I think my account has been compromised."
+      ],
+      "expected_tools": [
+        {"name": "escalate_to_human"}
+      ],
+      "expected_outcome": "escalation",
+      "tags": ["escalation", "security", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-014",
+      "name": "Inventory check for in-stock item",
+      "description": "Simple inventory check for available product",
+      "user_messages": [
+        "Is the wireless headphones PROD-001 still available? How many do you have?"
+      ],
+      "expected_tools": [
+        {"name": "check_inventory", "args": {"product_id": "PROD-001"}}
+      ],
+      "expected_outcome": "in_stock_reported",
+      "tags": ["inventory", "simple"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-015",
+      "name": "Complex multi-step workflow",
+      "description": "Customer has multiple issues across orders",
+      "user_messages": [
+        "I have a few issues. First, what's the status of ORD-1001?",
+        "OK, and can you check if the keyboard PROD-003 is back in stock?",
+        "It's not? That's disappointing. Can you also process a refund for ORD-1005? The sleeve was the wrong color."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "check_inventory", "args": {"product_id": "PROD-003"}},
+        {"name": "lookup_order", "args": {"order_id": "ORD-1005"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1005"}}
+      ],
+      "expected_outcome": "multi_task_completed",
+      "tags": ["multi-step", "multi-tool", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-016",
+      "name": "Refund amount exceeds total",
+      "description": "Customer requests refund larger than order total",
+      "user_messages": [
+        "I want a $200 refund for order ORD-1005."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1005"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1005", "amount": 200.0}}
+      ],
+      "expected_outcome": "refund_denied_excess",
+      "tags": ["refund", "edge-case"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-017",
+      "name": "Conversational order lookup",
+      "description": "Customer doesn't give order ID upfront",
+      "user_messages": [
+        "Hey, I placed an order a while ago and I'm wondering where it is.",
+        "Oh right, the order number is ORD-1002."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1002"}}
+      ],
+      "expected_outcome": "order_status_provided",
+      "tags": ["order", "conversational"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-018",
+      "name": "Shipping update with lookup",
+      "description": "Customer wants tracking info",
+      "user_messages": [
+        "Where's my package? Order ORD-1002."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1002"}}
+      ],
+      "expected_outcome": "tracking_provided",
+      "tags": ["shipping", "simple"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-019",
+      "name": "Payment dispute escalation",
+      "description": "Customer reports being double-charged",
+      "user_messages": [
+        "I was charged twice for order ORD-1001. My credit card shows two charges of $79.99."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "escalate_to_human"}
+      ],
+      "expected_outcome": "escalation",
+      "tags": ["escalation", "payment", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-020",
+      "name": "Refund then check replacement availability",
+      "description": "Customer wants refund and to check if replacement is available",
+      "user_messages": [
+        "The headphones from ORD-1001 are defective. Can I get a refund?",
+        "Yes, full refund. Also, are the headphones PROD-001 still available? I might reorder."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1001"}},
+        {"name": "check_inventory", "args": {"product_id": "PROD-001"}}
+      ],
+      "expected_outcome": "refund_and_availability",
+      "tags": ["refund", "inventory", "multi-step"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-021",
+      "name": "Greeting only",
+      "description": "Customer just says hello with no actionable request",
+      "user_messages": [
+        "Hi there!"
+      ],
+      "expected_tools": [],
+      "expected_outcome": "greeting_response",
+      "tags": ["conversational", "simple"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-022",
+      "name": "Multiple invalid requests",
+      "description": "Customer provides wrong IDs repeatedly",
+      "user_messages": [
+        "Check order ORD-0000.",
+        "OK try ORD-8888.",
+        "Fine, ORD-7777 then."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order"},
+        {"name": "lookup_order"},
+        {"name": "lookup_order"}
+      ],
+      "expected_outcome": "repeated_not_found",
+      "tags": ["error-handling", "patience"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-023",
+      "name": "Address change then cancel request",
+      "description": "Customer wants address change then changes mind",
+      "user_messages": [
+        "Change shipping for ORD-1003 to 500 New Rd, Miami, FL 33101.",
+        "Actually never mind, just cancel the whole order. I want to speak to someone."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1003"}},
+        {"name": "update_shipping_address", "args": {"order_id": "ORD-1003"}},
+        {"name": "escalate_to_human"}
+      ],
+      "expected_outcome": "escalation",
+      "tags": ["shipping", "escalation", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-024",
+      "name": "Inventory check non-existent product",
+      "description": "Customer asks about a product not in catalog",
+      "user_messages": [
+        "Do you have the gaming mouse PROD-999 in stock?"
+      ],
+      "expected_tools": [
+        {"name": "check_inventory", "args": {"product_id": "PROD-999"}}
+      ],
+      "expected_outcome": "product_not_found",
+      "tags": ["inventory", "error-handling"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-025",
+      "name": "Full workflow: lookup, refund, escalate",
+      "description": "Customer goes through full support journey ending in escalation",
+      "user_messages": [
+        "I need help with ORD-1001.",
+        "The product is defective. I want a refund.",
+        "Process the refund please.",
+        "I also want compensation for the inconvenience. This is the third time I've had issues.",
+        "I need to talk to a manager about this."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1001"}},
+        {"name": "escalate_to_human"}
+      ],
+      "expected_outcome": "refund_and_escalation",
+      "tags": ["full-workflow", "escalation", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-026",
+      "name": "Quick status check",
+      "description": "Customer wants fast status check on a shipped order",
+      "user_messages": [
+        "Status of ORD-1002?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1002"}}
+      ],
+      "expected_outcome": "order_status_provided",
+      "tags": ["order", "simple"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-027",
+      "name": "Refund for correct amount after lookup",
+      "description": "Customer asks for refund, agent should verify amount matches",
+      "user_messages": [
+        "I need to return the laptop sleeve from ORD-1005. How much will my refund be?",
+        "OK, go ahead with the $24.99 refund."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1005"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1005"}}
+      ],
+      "expected_outcome": "refund_approved",
+      "tags": ["refund", "verification"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-028",
+      "name": "Two inventory checks",
+      "description": "Customer comparing two products",
+      "user_messages": [
+        "I'm deciding between the headphones PROD-001 and the USB-C hub PROD-002. Are both in stock?"
+      ],
+      "expected_tools": [
+        {"name": "check_inventory", "args": {"product_id": "PROD-001"}},
+        {"name": "check_inventory", "args": {"product_id": "PROD-002"}}
+      ],
+      "expected_outcome": "dual_availability",
+      "tags": ["inventory", "multi-tool"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-029",
+      "name": "Polite decline and redirect",
+      "description": "Customer asks about something outside agent's scope",
+      "user_messages": [
+        "Can you change my account password?"
+      ],
+      "expected_tools": [
+        {"name": "escalate_to_human"}
+      ],
+      "expected_outcome": "escalation",
+      "tags": ["escalation", "scope"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-030",
+      "name": "Order lookup with follow-up questions",
+      "description": "Customer has several questions about one order",
+      "user_messages": [
+        "Tell me everything about order ORD-1001.",
+        "When was it delivered?",
+        "And what was the total cost?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}}
+      ],
+      "expected_outcome": "detailed_order_info",
+      "tags": ["order", "conversational"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-031",
+      "name": "Bulk refund request",
+      "description": "Customer wants refunds on multiple orders",
+      "user_messages": [
+        "I need refunds on both ORD-1001 and ORD-1005. Both products were defective."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1001"}},
+        {"name": "lookup_order", "args": {"order_id": "ORD-1005"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1005"}}
+      ],
+      "expected_outcome": "dual_refund_approved",
+      "tags": ["refund", "multi-step", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-032",
+      "name": "Address update for pending order",
+      "description": "Straightforward address update on a pending order",
+      "user_messages": [
+        "Update the address for ORD-1003 to 42 Wallaby Way, Sydney, NSW 2000."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1003"}},
+        {"name": "update_shipping_address", "args": {"order_id": "ORD-1003", "new_address": "42 Wallaby Way, Sydney, NSW 2000"}}
+      ],
+      "expected_outcome": "address_updated",
+      "tags": ["shipping", "simple"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-033",
+      "name": "Emotional customer needs empathy",
+      "description": "Customer is upset, agent should acknowledge feelings before acting",
+      "user_messages": [
+        "I'm so frustrated. I ordered a keyboard ORD-1003 weeks ago and it still hasn't shipped!",
+        "This is ridiculous. What's taking so long?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1003"}}
+      ],
+      "expected_outcome": "empathetic_status_update",
+      "tags": ["emotional", "order"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-034",
+      "name": "Refund with wrong order then correction",
+      "description": "Customer gives wrong order ID first, then corrects",
+      "user_messages": [
+        "Refund ORD-1004 please.",
+        "Wait, I meant ORD-1001. Sorry about that."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1004"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1004"}},
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1001"}}
+      ],
+      "expected_outcome": "corrected_refund",
+      "tags": ["refund", "correction", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-035",
+      "name": "Inventory and order in same turn",
+      "description": "Customer asks about inventory and an order simultaneously",
+      "user_messages": [
+        "Two things: check PROD-004 stock and look up ORD-1002."
+      ],
+      "expected_tools": [
+        {"name": "check_inventory", "args": {"product_id": "PROD-004"}},
+        {"name": "lookup_order", "args": {"order_id": "ORD-1002"}}
+      ],
+      "expected_outcome": "dual_response",
+      "tags": ["multi-tool", "medium"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-036",
+      "name": "Delivered order address change",
+      "description": "Customer wants to change address on already-delivered order",
+      "user_messages": [
+        "Can you update the address on ORD-1001? I moved."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "update_shipping_address", "args": {"order_id": "ORD-1001"}}
+      ],
+      "expected_outcome": "address_update_denied",
+      "tags": ["shipping", "edge-case"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-037",
+      "name": "Just checking tracking number",
+      "description": "Customer only wants tracking number",
+      "user_messages": [
+        "What's the tracking number for ORD-1001?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}}
+      ],
+      "expected_outcome": "tracking_provided",
+      "tags": ["order", "simple"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-038",
+      "name": "Reorder after refund",
+      "description": "Customer refunds then checks if they can reorder",
+      "user_messages": [
+        "Refund ORD-1005 please, the color was wrong.",
+        "Done? Great. Is the laptop sleeve PROD-005 available to reorder?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1005"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1005"}},
+        {"name": "check_inventory", "args": {"product_id": "PROD-005"}}
+      ],
+      "expected_outcome": "refund_and_reorder_check",
+      "tags": ["refund", "inventory", "multi-step"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-039",
+      "name": "Urgent escalation request",
+      "description": "Customer demands immediate escalation from first message",
+      "user_messages": [
+        "I need to speak to a human agent right now. This is urgent."
+      ],
+      "expected_tools": [
+        {"name": "escalate_to_human"}
+      ],
+      "expected_outcome": "escalation",
+      "tags": ["escalation", "urgent"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-040",
+      "name": "Complete support journey",
+      "description": "Full lifecycle: check order, update address, then refund different order",
+      "user_messages": [
+        "Check ORD-1003 status for me.",
+        "Update the address to 999 Broadway, New York, NY 10001.",
+        "Also I need a refund for ORD-1001 - defective product."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1003"}},
+        {"name": "update_shipping_address", "args": {"order_id": "ORD-1003"}},
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1001"}}
+      ],
+      "expected_outcome": "multi_task_completed",
+      "tags": ["full-workflow", "multi-step", "hard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "CS-041",
+      "name": "Cancelled order inquiry",
+      "description": "Customer asks why their order was cancelled",
+      "user_messages": [
+        "Why was ORD-1004 cancelled? I didn't cancel it."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1004"}}
+      ],
+      "expected_outcome": "cancellation_info",
+      "tags": ["order", "inquiry"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-042",
+      "name": "Price match request escalation",
+      "description": "Customer wants price match, outside agent capability",
+      "user_messages": [
+        "I bought the headphones for $79.99 but I saw them on Amazon for $59.99. Can you match the price?",
+        "So you can't do it? Get me someone who can."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order"},
+        {"name": "escalate_to_human"}
+      ],
+      "expected_outcome": "escalation",
+      "tags": ["escalation", "pricing"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-043",
+      "name": "Multiple product availability check",
+      "description": "Customer checking stock for several items",
+      "user_messages": [
+        "Are PROD-001, PROD-003, and PROD-005 all in stock?"
+      ],
+      "expected_tools": [
+        {"name": "check_inventory", "args": {"product_id": "PROD-001"}},
+        {"name": "check_inventory", "args": {"product_id": "PROD-003"}},
+        {"name": "check_inventory", "args": {"product_id": "PROD-005"}}
+      ],
+      "expected_outcome": "multi_inventory_check",
+      "tags": ["inventory", "multi-tool"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-044",
+      "name": "Refund eligibility check",
+      "description": "Customer asks if refund is possible before requesting",
+      "user_messages": [
+        "Is ORD-1001 eligible for a refund?",
+        "OK go ahead."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1001"}}
+      ],
+      "expected_outcome": "refund_approved",
+      "tags": ["refund", "inquiry"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-045",
+      "name": "Shipping delay complaint",
+      "description": "Customer complains about shipping, needs tracking lookup",
+      "user_messages": [
+        "My order ORD-1002 was supposed to arrive yesterday. It's been stuck in transit."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1002"}}
+      ],
+      "expected_outcome": "shipping_status_with_tracking",
+      "tags": ["shipping", "complaint"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-046",
+      "name": "Gift order address change",
+      "description": "Customer sending gift, needs address change on pending order",
+      "user_messages": [
+        "ORD-1003 is a gift. Can you change the address to 123 Gift Lane, San Francisco, CA 94102?",
+        "And make sure there's no price on the packaging please."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1003"}},
+        {"name": "update_shipping_address", "args": {"order_id": "ORD-1003"}}
+      ],
+      "expected_outcome": "address_updated_with_note",
+      "tags": ["shipping", "gift"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-047",
+      "name": "Refund timing question",
+      "description": "Customer already got refund approved, asks about timeline",
+      "user_messages": [
+        "I need a refund for order ORD-1001.",
+        "How long until I see the money back in my account?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1001"}}
+      ],
+      "expected_outcome": "refund_approved_with_timeline",
+      "tags": ["refund", "follow-up"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-048",
+      "name": "Warranty question escalation",
+      "description": "Customer asks about warranty terms, needs human",
+      "user_messages": [
+        "What's the warranty on the headphones from ORD-1001?",
+        "I need official warranty documentation. Can someone help?"
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}},
+        {"name": "escalate_to_human"}
+      ],
+      "expected_outcome": "escalation",
+      "tags": ["escalation", "warranty"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "CS-049",
+      "name": "Thank you and goodbye",
+      "description": "Customer is satisfied and ends conversation",
+      "user_messages": [
+        "Can you check ORD-1001?",
+        "Great, thanks! That's all I needed."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1001"}}
+      ],
+      "expected_outcome": "satisfied_close",
+      "tags": ["order", "positive"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "CS-050",
+      "name": "End-to-end: complaint to resolution",
+      "description": "Full journey from complaint through investigation to refund",
+      "user_messages": [
+        "I'm very unhappy with my recent purchase.",
+        "It's ORD-1005. The laptop sleeve material is cheap and started peeling.",
+        "I want my money back.",
+        "Thank you. That's all."
+      ],
+      "expected_tools": [
+        {"name": "lookup_order", "args": {"order_id": "ORD-1005"}},
+        {"name": "process_refund", "args": {"order_id": "ORD-1005"}}
+      ],
+      "expected_outcome": "refund_approved",
+      "tags": ["refund", "full-workflow", "emotional"],
+      "difficulty": "medium"
+    }
+  ]
+}

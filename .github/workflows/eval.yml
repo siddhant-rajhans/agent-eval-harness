@@ -1,0 +1,67 @@
+name: Evaluation Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Run unit tests
+        working-directory: .
+        run: |
+          PYTHONPATH=src:. pytest tests/ -v --tb=short
+
+  eval:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Run evaluation suite
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+        working-directory: .
+        run: |
+          PYTHONPATH=src:. agent-eval run \
+            --scenarios scenarios/customer_support.json \
+            --model gpt-4o-mini \
+            --output results/ \
+            --wandb
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: results/
+
+      - name: Check for regressions
+        if: hashFiles('results/baseline.json') != ''
+        working-directory: .
+        run: |
+          PYTHONPATH=src:. agent-eval compare results/baseline.json results/eval_results.json
