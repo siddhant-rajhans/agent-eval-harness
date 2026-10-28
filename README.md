@@ -29,21 +29,42 @@ graph TD
     SC --> WB[W&B Report]
 ```
 
-## Results
+## Measured Results
 
-Evaluated on 50 scripted customer support scenarios:
+### Scoring pipeline verification (mock traces)
 
-| Metric | Value |
-|--------|-------|
-| Task Success Rate | 92% (46/50 scenarios) |
-| Mean Tool Accuracy | 94.1% |
-| Mean Efficiency | 87.3% |
-| Mean Cost/Task | $0.0012 |
-| Escalation Rate | 16% |
+The scoring pipeline was evaluated end-to-end against all 50 scenarios
+using synthesised tool-call traces (no LLM). Three trace variants test
+that the scorer distinguishes correct, partially-wrong, and fully-wrong
+agent behaviour:
 
-**Regressions caught in CI**: 3 regressions detected before release (tool routing errors after prompt change).
+| Variant | Success Rate | Tool Accuracy | Efficiency | Mean Cost/Task |
+|---------|-------------|---------------|------------|----------------|
+| **Perfect traces** (baseline) | 100.0% (50/50) | 100.0% | 100.0% | $0.0002 |
+| **Degraded traces** (1 missed + 1 spurious tool) | 24.0% | 37.7% | 99.0% | $0.0002 |
+| **Wrong traces** (completely wrong tools) | 18.0% | 11.3% | - | - |
 
-**Cost optimization**: Prompt and routing changes cut cost per task by 34% (from $0.0018 to $0.0012).
+**Regression detection**: the checker caught 4 regressions across two
+degradation levels (success-rate drop and tool-accuracy drop for each).
+
+**Note**: these numbers measure the *scoring and regression-detection
+pipeline*, not a live LLM agent. Running the full harness against an LLM
+(`agent-eval run --scenarios ...`) requires an `OPENAI_API_KEY` and will
+produce agent-level metrics; the scoring code exercised here is the same
+code path used in that live run.
+
+### Live agent evaluation
+
+To produce agent-level metrics, run the harness with a live LLM:
+
+```bash
+export OPENAI_API_KEY=your-key
+agent-eval run --scenarios scenarios/customer_support.json --model gpt-4o-mini
+```
+
+The harness scores each conversation on task success, tool accuracy,
+efficiency, and estimated cost, then writes results to `results/` and
+optionally logs to W&B.
 
 ## Setup
 
@@ -53,13 +74,19 @@ git clone https://github.com/siddhant-rajhans/agent-eval-harness.git
 cd agent-eval-harness
 pip install -e ".[dev]"
 
-# Set API key
+# Set API key (for live agent evaluation)
 export OPENAI_API_KEY=your-key-here
 ```
 
 ## Usage
 
-### Run the evaluation suite
+### Run the scoring pipeline verification (no API key needed)
+
+```bash
+PYTHONPATH=src:. python3 scripts/run_e2e_eval.py
+```
+
+### Run the full evaluation suite (requires API key)
 
 ```bash
 # Run all 50 scenarios
@@ -76,22 +103,6 @@ agent-eval run --scenarios scenarios/customer_support.json --wandb --run-name "v
 
 ```bash
 agent-eval compare results/baseline.json results/eval_results.json --threshold 0.05
-```
-
-### Sample output
-
-```
-                  Evaluation Results
-┌─────────────────┬──────────────┐
-│ Metric          │ Value        │
-├─────────────────┼──────────────┤
-│ Success Rate    │ 92.0%        │
-│ Tool Accuracy   │ 94.1%        │
-│ Efficiency      │ 87.3%        │
-│ Mean Cost/Task  │ $0.0012      │
-│ Total Cost      │ $0.0600      │
-│ Escalation Rate │ 16.0%        │
-└─────────────────┴──────────────┘
 ```
 
 ## Agent Tools
