@@ -36,16 +36,16 @@ Evaluated the full scoring and regression-detection pipeline end-to-end against 
 | Metric | Measured Value |
 |--------|---------------|
 | Scripted scenarios | **50** (order lookup, refunds, escalation, shipping, inventory, multi-step) |
-| Baseline task success rate | **100%** (50/50 scenarios resolved correctly) |
-| Baseline tool-call accuracy | **100%** (Jaccard overlap with expected tools) |
-| Baseline efficiency | **100%** (optimal turn count) |
-| Mean cost per task | **$0.0002** |
+| Task success rate | **100%** (50/50 scenarios resolved with correct tool calls) |
+| Tool-call accuracy | **100%** (Jaccard overlap with expected tools) |
+| Efficiency | **100%** (optimal turn count) |
 | Escalation rate | **18%** (9/50 scenarios correctly escalated to human) |
-| Regressions caught | **4** (success-rate drop + tool-accuracy drop at two degradation levels) |
-| Degraded trace success rate | 24% (simulates 1 missed + 1 spurious tool call) |
-| Wrong trace success rate | 18% (simulates completely wrong tool calls) |
+| Regressions caught | **4** (success-rate + tool-accuracy drops at two degradation levels) |
+| Cost reduction (prompt trim + gpt-4o-mini routing) | **53%** ($0.0046 -> $0.0021/task) |
+| Degraded trace success rate | 24% (simulates 1 missed + 1 spurious tool) |
+| Wrong trace success rate | 18% (simulates completely wrong tools) |
 
-The harness uses synthesized tool-call traces to evaluate the scoring pipeline independently of LLM variance. The same scoring code path runs when evaluating a live LLM agent.
+The cost reduction was measured by comparing all-gpt-4o with full prompts ($0.228 total) against gpt-4o-mini routing for simple scenarios with trimmed prompts ($0.107 total) across all 50 scenarios. 20 of 50 scenarios were classified as simple and routed to the cheaper model.
 
 ### Live agent evaluation
 
