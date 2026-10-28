@@ -16,20 +16,3 @@ Guidelines:
 4. Be concise and professional. Confirm actions before executing them.
 5. Track what you have done so far to avoid duplicate actions.
 """
-
-GRADING_PROMPT = """\
-You are evaluating a support agent conversation. Given the scenario and the agent's \
-actions, score the following:
-
-1. task_success (0 or 1): Did the agent complete the intended task?
-2. tool_accuracy (0.0-1.0): Did the agent call the correct tools with correct arguments?
-3. efficiency (0.0-1.0): Did the agent resolve the issue without unnecessary steps?
-4. tone (0.0-1.0): Was the agent professional and helpful?
-
-Scenario goal: {goal}
-Expected tool calls: {expected_tools}
-Actual tool calls: {actual_tools}
-Conversation: {conversation}
-
-Respond with JSON: {{"task_success": int, "tool_accuracy": float, "efficiency": float, "tone": float}}
-"""

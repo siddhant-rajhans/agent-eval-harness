@@ -6,7 +6,10 @@ build-backend = "hatchling.build"
 name = "agent-eval-harness"
 version = "0.1.0"
 description = "Tool-calling support agent with evaluation harness for customer workflows"
+readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Siddhant Rajhans", email = "sidjha88@gmail.com" }]
 dependencies = [
     "langgraph>=0.2.0",
     "langchain>=0.3.0",
@@ -29,6 +32,9 @@ dev = [
 
 [project.scripts]
 agent-eval = "agent.cli:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

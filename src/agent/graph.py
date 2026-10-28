@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
@@ -12,7 +13,11 @@ from agent.config import AgentConfig
 from agent.prompts import SYSTEM_PROMPT
 from agent.tools import ALL_TOOLS
 
+logger = logging.getLogger(__name__)
 
+
+# LangGraph runtime state (messages + control flow). Separate from AgentState
+# in schemas.py, which is the serializable evaluation-facing schema.
 class GraphState(BaseModel):
     messages: list[BaseMessage] = Field(default_factory=list)
     tool_calls_made: list[str] = Field(default_factory=list)
@@ -23,8 +28,17 @@ class GraphState(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
-def build_agent(config: AgentConfig | None = None) -> StateGraph:
+_COMPILED_CACHE: dict[str, Any] = {}
+
+
+def build_agent(config: AgentConfig | None = None) -> Any:
+    """Compile a LangGraph agent with tool-calling support. Caches by model name."""
     config = config or AgentConfig()
+    cache_key = f"{config.model}:{config.temperature}:{config.max_turns}"
+
+    if cache_key in _COMPILED_CACHE:
+        return _COMPILED_CACHE[cache_key]
+
     llm = ChatOpenAI(model=config.model, temperature=config.temperature)
     llm_with_tools = llm.bind_tools(ALL_TOOLS)
 
@@ -81,7 +95,10 @@ def build_agent(config: AgentConfig | None = None) -> StateGraph:
         {"agent": "agent", "end": END},
     )
 
-    return graph.compile()
+    compiled = graph.compile()
+    _COMPILED_CACHE[cache_key] = compiled
+    logger.info("Compiled agent graph (model=%s, max_turns=%d)", config.model, config.max_turns)
+    return compiled
 
 
 def run_conversation(user_messages: list[str], config: AgentConfig | None = None) -> GraphState:

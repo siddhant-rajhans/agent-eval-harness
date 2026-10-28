@@ -8,6 +8,7 @@ import yaml
 
 @dataclass
 class AgentConfig:
+    """LLM and runtime settings for the tool-calling support agent."""
     model: str = "gpt-4o-mini"
     temperature: float = 0.0
     max_turns: int = 15
@@ -24,6 +25,7 @@ class AgentConfig:
 
 @dataclass
 class EvalConfig:
+    """Paths, parallelism, and W&B settings for evaluation runs."""
     scenarios_dir: Path = field(default_factory=lambda: Path("scenarios"))
     results_dir: Path = field(default_factory=lambda: Path("results"))
     wandb_project: str = "agent-eval-harness"

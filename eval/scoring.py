@@ -1,12 +1,25 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 from eval.scenarios import ExpectedToolCall
 
+logger = logging.getLogger(__name__)
+
+# Offline cost estimation rates ($/1K tokens). Used for relative comparison
+# between model choices, not billing-accurate accounting.
+MODEL_COST_PER_1K: dict[str, float] = {
+    "gpt-4o-mini": 0.00015,
+    "gpt-4o": 0.005,
+    "claude-sonnet-4-20250514": 0.003,
+}
+_DEFAULT_COST_PER_1K = 0.001
+
 
 @dataclass
 class ScenarioScore:
+    """Per-scenario evaluation: task success, tool accuracy, efficiency, and cost."""
     scenario_id: str
     task_success: int
     tool_accuracy: float
@@ -21,6 +34,7 @@ class ScenarioScore:
 
     @property
     def composite_score(self) -> float:
+        # Weights: task_success 40%, tool_accuracy 30%, efficiency 30%
         return (
             self.task_success * 0.4
             + self.tool_accuracy * 0.3
@@ -30,6 +44,7 @@ class ScenarioScore:
 
 @dataclass
 class SuiteScore:
+    """Aggregate scores across all scenarios in an evaluation run."""
     scores: list[ScenarioScore] = field(default_factory=list)
 
     @property
@@ -110,10 +125,9 @@ def compute_efficiency(turn_count: int, optimal_turns: int | None = None) -> flo
 
 
 def estimate_cost(total_tokens: int, model: str = "gpt-4o-mini") -> float:
-    cost_per_1k = {
-        "gpt-4o-mini": 0.00015,
-        "gpt-4o": 0.005,
-        "claude-sonnet-4-20250514": 0.003,
-    }
-    rate = cost_per_1k.get(model, 0.001)
-    return (total_tokens / 1000) * rate
+    """Estimate cost from token count. Uses len(content)//4 token approximation
+    (standard for offline eval without a tiktoken dependency)."""
+    rate = MODEL_COST_PER_1K.get(model, _DEFAULT_COST_PER_1K)
+    cost = (total_tokens / 1000) * rate
+    logger.debug("Cost estimate: %d tokens @ %s = $%.6f", total_tokens, model, cost)
+    return cost

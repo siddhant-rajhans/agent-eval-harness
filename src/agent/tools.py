@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import uuid
+from pathlib import Path
 from typing import Any
 
 from langchain_core.tools import tool
@@ -14,71 +16,15 @@ from agent.schemas import (
     RefundStatus,
 )
 
-MOCK_ORDERS: dict[str, dict[str, Any]] = {
-    "ORD-1001": {
-        "order_id": "ORD-1001",
-        "customer_id": "CUST-501",
-        "product_name": "Wireless Headphones",
-        "quantity": 1,
-        "total_amount": 79.99,
-        "status": "delivered",
-        "shipping_address": "123 Main St, Austin, TX 78701",
-        "tracking_number": "1Z999AA10123456784",
-        "order_date": "2025-01-15",
-    },
-    "ORD-1002": {
-        "order_id": "ORD-1002",
-        "customer_id": "CUST-502",
-        "product_name": "USB-C Hub",
-        "quantity": 2,
-        "total_amount": 49.98,
-        "status": "shipped",
-        "shipping_address": "456 Oak Ave, Portland, OR 97201",
-        "tracking_number": "1Z999AA10123456785",
-        "order_date": "2025-02-01",
-    },
-    "ORD-1003": {
-        "order_id": "ORD-1003",
-        "customer_id": "CUST-503",
-        "product_name": "Mechanical Keyboard",
-        "quantity": 1,
-        "total_amount": 129.99,
-        "status": "pending",
-        "shipping_address": "789 Pine Rd, Seattle, WA 98101",
-        "tracking_number": None,
-        "order_date": "2025-02-10",
-    },
-    "ORD-1004": {
-        "order_id": "ORD-1004",
-        "customer_id": "CUST-504",
-        "product_name": "Monitor Stand",
-        "quantity": 1,
-        "total_amount": 34.99,
-        "status": "cancelled",
-        "shipping_address": "321 Elm St, Denver, CO 80201",
-        "tracking_number": None,
-        "order_date": "2025-01-28",
-    },
-    "ORD-1005": {
-        "order_id": "ORD-1005",
-        "customer_id": "CUST-505",
-        "product_name": "Laptop Sleeve",
-        "quantity": 1,
-        "total_amount": 24.99,
-        "status": "delivered",
-        "shipping_address": "654 Birch Ln, Chicago, IL 60601",
-        "tracking_number": "1Z999AA10123456786",
-        "order_date": "2025-01-20",
-    },
-}
+_FIXTURES_PATH = Path(__file__).parent / "fixtures.json"
 
-MOCK_INVENTORY: dict[str, dict[str, Any]] = {
-    "PROD-001": {"product_id": "PROD-001", "product_name": "Wireless Headphones", "in_stock": True, "quantity_available": 142, "estimated_restock": None},
-    "PROD-002": {"product_id": "PROD-002", "product_name": "USB-C Hub", "in_stock": True, "quantity_available": 58, "estimated_restock": None},
-    "PROD-003": {"product_id": "PROD-003", "product_name": "Mechanical Keyboard", "in_stock": False, "quantity_available": 0, "estimated_restock": "2025-03-15"},
-    "PROD-004": {"product_id": "PROD-004", "product_name": "Monitor Stand", "in_stock": True, "quantity_available": 203, "estimated_restock": None},
-    "PROD-005": {"product_id": "PROD-005", "product_name": "Laptop Sleeve", "in_stock": True, "quantity_available": 89, "estimated_restock": None},
-}
+def _load_fixtures() -> dict[str, Any]:
+    with open(_FIXTURES_PATH) as f:
+        return json.load(f)
+
+_DATA = _load_fixtures()
+MOCK_ORDERS: dict[str, dict[str, Any]] = _DATA["orders"]
+MOCK_INVENTORY: dict[str, dict[str, Any]] = _DATA["inventory"]
 
 
 @tool

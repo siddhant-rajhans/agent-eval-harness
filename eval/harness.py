@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,6 +20,10 @@ from eval.scoring import (
     estimate_cost,
 )
 
+logger = logging.getLogger(__name__)
+
+DEFAULT_SUCCESS_THRESHOLD = 0.8
+
 
 @dataclass
 class RunTrace:
@@ -31,6 +36,7 @@ class RunTrace:
 
 
 def _count_tokens(messages: list) -> int:
+    # len(content)//4 is the standard offline approximation without a tiktoken dependency
     total = 0
     for msg in messages:
         content = msg.content if hasattr(msg, "content") else str(msg)
@@ -50,6 +56,7 @@ def run_scenario(scenario: Scenario, agent_config: AgentConfig) -> RunTrace:
         "retry_count": 0,
     }
 
+    logger.info("Running scenario %s", scenario.id)
     start = time.monotonic()
     try:
         for user_msg in scenario.user_messages:
@@ -74,13 +81,20 @@ def run_scenario(scenario: Scenario, agent_config: AgentConfig) -> RunTrace:
         trace.total_tokens = _count_tokens(state.get("messages", []))
     except Exception as e:
         trace.error = str(e)
+        logger.error("Scenario %s failed: %s", scenario.id, e)
 
     trace.latency_seconds = time.monotonic() - start
     trace.tool_calls = state.get("tool_calls_made", trace.tool_calls)
+    logger.info("Scenario %s complete (%.2fs, %d tools)", scenario.id, trace.latency_seconds, len(trace.tool_calls))
     return trace
 
 
-def score_trace(trace: RunTrace, scenario: Scenario, model: str) -> ScenarioScore:
+def score_trace(
+    trace: RunTrace,
+    scenario: Scenario,
+    model: str,
+    success_threshold: float = DEFAULT_SUCCESS_THRESHOLD,
+) -> ScenarioScore:
     if trace.error:
         return ScenarioScore(
             scenario_id=scenario.id,
@@ -97,10 +111,9 @@ def score_trace(trace: RunTrace, scenario: Scenario, model: str) -> ScenarioScor
         )
 
     accuracy, precision, recall = compute_tool_accuracy(trace.tool_calls, scenario.expected_tools)
-    expected_tool_names = {tc.name for tc in scenario.expected_tools}
     escalated = "escalate_to_human" in trace.tool_calls
 
-    task_success = 1 if recall >= 0.8 else 0
+    task_success = 1 if recall >= success_threshold else 0
     if scenario.expected_outcome == "escalation":
         task_success = 1 if escalated else 0
     elif scenario.expected_outcome == "refund_approved" and "process_refund" not in trace.tool_calls:
@@ -124,9 +137,17 @@ def score_trace(trace: RunTrace, scenario: Scenario, model: str) -> ScenarioScor
 
 
 class EvalHarness:
-    def __init__(self, agent_config: AgentConfig, eval_config: EvalConfig):
+    """Runs a scenario suite against the agent and collects scored results."""
+
+    def __init__(
+        self,
+        agent_config: AgentConfig,
+        eval_config: EvalConfig,
+        success_threshold: float = DEFAULT_SUCCESS_THRESHOLD,
+    ):
         self.agent_config = agent_config
         self.eval_config = eval_config
+        self.success_threshold = success_threshold
         self.traces: list[RunTrace] = []
         self.suite_score: SuiteScore | None = None
 
@@ -135,7 +156,7 @@ class EvalHarness:
         for scenario in suite.scenarios:
             trace = run_scenario(scenario, self.agent_config)
             self.traces.append(trace)
-            score = score_trace(trace, scenario, self.agent_config.model)
+            score = score_trace(trace, scenario, self.agent_config.model, self.success_threshold)
             scores.append(score)
 
         self.suite_score = SuiteScore(scores=scores)
