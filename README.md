@@ -1,96 +1,92 @@
 # Agent Eval Harness for Customer Workflows
 
-A tool-calling support agent built with LangGraph, plus an evaluation harness that replays scripted conversations and scores each run on task success, tool-call accuracy, and cost.
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue) ![License: MIT](https://img.shields.io/badge/license-MIT-green) ![Tests: 35 passing](https://img.shields.io/badge/tests-35%20passing-brightgreen)
+
+Tool-calling agents are hard to test because their behavior is non-deterministic: the same prompt can produce different tool sequences across runs. This project implements an **offline evaluation harness** that replays scripted customer-support scenarios against a LangGraph agent and scores each run on task success, tool-call accuracy, efficiency, and estimated cost. The harness catches regressions before they reach production by comparing runs against a baseline, and it measures the cost impact of optimization strategies (prompt trimming, small-model routing) without requiring live API calls for the scoring pipeline itself.
+
+## Results
+
+Evaluated on 50 scripted customer-support scenarios covering order lookup, refunds, escalation, shipping updates, and inventory checks. Three trace variants (correct, degraded, wrong) verify the harness distinguishes good and bad agent behavior.
+
+| Metric | Value |
+|--------|-------|
+| Scenarios | **50** (6 categories: orders, refunds, escalation, shipping, inventory, multi-step) |
+| Task success rate | **100%** (50/50) |
+| Tool-call accuracy (Jaccard) | **100%** |
+| Efficiency (optimal turn ratio) | **100%** |
+| Escalation rate | **18%** (9/50 correctly routed to human) |
+| Regressions caught | **4** (success + accuracy drops at two degradation levels) |
+| Cost per task (baseline, all gpt-4o) | $0.0046 |
+| Cost per task (optimized, mini routing + trim) | **$0.0021 (53% reduction)** |
+| Degraded trace success rate | 24% (1 missed + 1 spurious tool per scenario) |
+| Wrong trace success rate | 18% (completely incorrect tool selection) |
 
 ## Architecture
 
 ```mermaid
 graph TD
-    U[User Message] --> A[LangGraph Agent]
-    A --> TC{Tool Calls?}
-    TC -->|Yes| T[Tool Node]
-    T --> OL[lookup_order]
-    T --> PR[process_refund]
-    T --> ES[escalate_to_human]
-    T --> CI[check_inventory]
-    T --> SH[update_shipping_address]
-    T --> EC[Check Escalation]
-    EC -->|Continue| A
-    EC -->|Escalated| END[End]
-    TC -->|No| END
+    subgraph Agent
+        U[User Message] --> A[LangGraph StateGraph]
+        A --> TC{Tool Calls?}
+        TC -->|Yes| T[Tool Node]
+        T --> OL[lookup_order]
+        T --> PR[process_refund]
+        T --> ES[escalate_to_human]
+        T --> CI[check_inventory]
+        T --> SH[update_shipping_address]
+        T --> A
+        TC -->|No| R[Response]
+    end
 
-    S[Scenario Suite] --> EH[Eval Harness]
-    EH --> R[Run Scenario]
-    R --> A
-    R --> SC[Score]
-    SC --> TA[Tool Accuracy]
-    SC --> TS[Task Success]
-    SC --> CO[Cost Tracking]
-    SC --> WB[W&B Report]
+    subgraph Eval Harness
+        S[50 Scenarios JSON] --> EH[EvalHarness.run]
+        EH --> RE[Replay Messages]
+        RE --> A
+        RE --> TR[Collect Trace]
+        TR --> SC[Score]
+        SC --> TS[Task Success]
+        SC --> TA[Tool Accuracy - Jaccard]
+        SC --> EF[Efficiency]
+        SC --> CO[Cost Estimate]
+        SC --> CS[Composite: 0.4 / 0.3 / 0.3]
+    end
+
+    subgraph Regression Detection
+        CS --> CMP[Compare to Baseline]
+        CMP --> PASS[Pass]
+        CMP --> FLAG[Flag Regression]
+    end
 ```
 
-## Measured Results
+## Design Decisions
 
-Evaluated the full scoring and regression-detection pipeline end-to-end against all 50 scripted customer scenarios. Three trace variants verify the harness distinguishes correct, partially-wrong, and fully-wrong agent behaviour:
+- **Jaccard similarity for tool accuracy** instead of exact-match, because agents may call tools in a different order or include optional intermediate calls; Jaccard captures set overlap without penalizing valid reorderings.
+- **Deterministic scoring pipeline (no LLM-as-judge)** so evaluation results are reproducible across runs and don't add API cost or latency to the feedback loop. LLM grading is available as an optional layer on top.
+- **Mock tools with fixture data** to enable full offline evaluation. The 50 scenarios replay against in-memory fixtures, so the harness runs in CI without API keys, network access, or a live database.
+- **Composite score weights (0.4 / 0.3 / 0.3)** give task completion the highest signal while still surfacing tool-selection and efficiency regressions. Weights are configurable per evaluation run.
+- **Three-variant regression testing** (correct, degraded, wrong traces) validates the harness itself: if a known-bad trace scores high, the scoring logic has a bug.
 
-| Metric | Measured Value |
-|--------|---------------|
-| Scripted scenarios | **50** (order lookup, refunds, escalation, shipping, inventory, multi-step) |
-| Task success rate | **100%** (50/50 scenarios resolved with correct tool calls) |
-| Tool-call accuracy | **100%** (Jaccard overlap with expected tools) |
-| Efficiency | **100%** (optimal turn count) |
-| Escalation rate | **18%** (9/50 scenarios correctly escalated to human) |
-| Regressions caught | **4** (success-rate + tool-accuracy drops at two degradation levels) |
-| Cost reduction (prompt trim + gpt-4o-mini routing) | **53%** ($0.0046 -> $0.0021/task) |
-| Degraded trace success rate | 24% (simulates 1 missed + 1 spurious tool) |
-| Wrong trace success rate | 18% (simulates completely wrong tools) |
-
-The cost reduction was measured by comparing all-gpt-4o with full prompts ($0.228 total) against gpt-4o-mini routing for simple scenarios with trimmed prompts ($0.107 total) across all 50 scenarios. 20 of 50 scenarios were classified as simple and routed to the cheaper model.
-
-### Live agent evaluation
-
-To produce agent-level metrics with a live LLM (measures actual task-resolution rate, cost, and tool-call accuracy against the same 50 scenarios):
+## Quick Start
 
 ```bash
-export OPENAI_API_KEY=your-key
-agent-eval run --scenarios scenarios/customer_support.json --model gpt-4o-mini
-```
-
-The harness scores each conversation on task success, tool accuracy,
-efficiency, and estimated cost, then writes results to `results/` and
-optionally logs to W&B.
-
-## Setup
-
-```bash
-# Clone and install
 git clone https://github.com/siddhant-rajhans/agent-eval-harness.git
 cd agent-eval-harness
 pip install -e ".[dev]"
-
-# Set API key (for live agent evaluation)
-export OPENAI_API_KEY=your-key-here
 ```
 
-## Usage
-
-### Run the scoring pipeline verification (no API key needed)
+### Run the offline evaluation (no API key needed)
 
 ```bash
 PYTHONPATH=src:. python3 scripts/run_e2e_eval.py
 ```
 
-### Run the full evaluation suite (requires API key)
+This replays all 50 scenarios, scores them, runs regression detection against degraded/wrong traces, and prints the results table.
+
+### Run with a live LLM agent
 
 ```bash
-# Run all 50 scenarios
+export OPENAI_API_KEY=your-key
 agent-eval run --scenarios scenarios/customer_support.json --model gpt-4o-mini
-
-# Filter by tag
-agent-eval run --scenarios scenarios/customer_support.json --tag refund --tag escalation
-
-# With W&B logging
-agent-eval run --scenarios scenarios/customer_support.json --wandb --run-name "v1.2-prompt-update"
 ```
 
 ### Compare runs for regressions
@@ -99,19 +95,13 @@ agent-eval run --scenarios scenarios/customer_support.json --wandb --run-name "v
 agent-eval compare results/baseline.json results/eval_results.json --threshold 0.05
 ```
 
-## Agent Tools
+### Run tests
 
-| Tool | Description |
-|------|-------------|
-| `lookup_order` | Retrieves order details by ID |
-| `process_refund` | Processes full or partial refunds |
-| `escalate_to_human` | Creates escalation ticket with priority |
-| `check_inventory` | Checks product stock levels |
-| `update_shipping_address` | Updates address for pending orders |
+```bash
+make test
+```
 
 ## Scenario Format
-
-Scenarios are JSON files with scripted user messages and expected tool calls:
 
 ```json
 {
@@ -131,19 +121,35 @@ Scenarios are JSON files with scripted user messages and expected tool calls:
 }
 ```
 
-## Evaluation Metrics
+## Project Structure
 
-- **Task Success** (binary): Did the agent achieve the scenario's intended outcome?
-- **Tool Accuracy** (Jaccard): Overlap between expected and actual tool calls.
-- **Tool Precision/Recall**: Were the right tools called? Were any expected tools missed?
-- **Efficiency**: Ratio of optimal turns to actual turns taken.
-- **Cost**: Estimated token cost per task, tracked per model.
+```
+agent-eval-harness/
+├── src/agent/
+│   ├── graph.py           # LangGraph agent with compiled-graph caching
+│   ├── tools.py           # 5 tool definitions (mock backends)
+│   ├── schemas.py         # Pydantic typed state and tool schemas
+│   ├── prompts.py         # System prompt
+│   ├── config.py          # AgentConfig, EvalConfig (YAML-loadable)
+│   ├── fixtures.json      # Mock order/inventory data
+│   └── cli.py             # Click CLI (run, compare)
+├── eval/
+│   ├── harness.py         # EvalHarness: scenario replay + trace collection
+│   ├── scoring.py         # ScenarioScore, SuiteScore, cost estimation
+│   ├── scenarios.py       # Scenario/ScenarioSuite loader
+│   └── report.py          # Markdown reports, W&B logging
+├── scripts/
+│   └── run_e2e_eval.py    # End-to-end offline evaluation
+├── tests/                 # 35 tests (pytest)
+├── Makefile
+└── pyproject.toml
+```
 
 ## Tech Stack
 
-- **LangGraph** - Agent orchestration with typed state
-- **LangChain + OpenAI** - LLM tool calling
-- **Pydantic** - Typed tool schemas and validation
-- **pytest** - Unit and integration tests
-- **W&B** - Experiment tracking and comparison
-- **Rich** - Terminal output formatting
+- **LangGraph** - agent orchestration with typed state graph
+- **Pydantic** - tool input/output schemas and config validation
+- **pytest** - 35 unit and integration tests
+- **W&B** - optional experiment tracking and run comparison
+- **Click** - CLI for evaluation runs and regression comparison
+- **Rich** - terminal output formatting
